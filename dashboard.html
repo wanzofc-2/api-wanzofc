@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .sidebar {
+            width: 250px;
+            position: fixed;
+            top: 0;
+            left: -250px;
+            height: 100%;
+            background-color: #333;
+            color: white;
+            transition: 0.3s;
+            padding-top: 20px;
+            box-shadow: 4px 0 6px rgba(0, 0, 0, 0.2);
+        }
+        .sidebar a {
+            padding: 10px 15px;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        .sidebar a:hover {
+            background-color: #575757;
+        }
+        .sidebar .close-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+        }
+        .open-btn {
+            font-size: 30px;
+            padding: 10px;
+            cursor: pointer;
+            color: #333;
+        }
+        .container {
+            margin-left: 30px;
+            padding: 20px;
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .logout {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+
+<div id="mySidebar" class="sidebar">
+    <a href="javascript:void(0)" class="close-btn" onclick="closeNav()">&times;</a>
+    <a href="#" onclick="getApiKey('instagram')">Instagram API</a>
+    <a href="#" onclick="getApiKey('youtube')">YouTube API</a>
+    <a href="#" onclick="getApiKey('tiktok')">TikTok API</a>
+    <a href="javascript:void(0)" class="logout" onclick="logout()">Logout</a>
+</div>
+
+<span class="open-btn" onclick="openNav()">&#9776; Open Sidebar</span>
+
+<div class="container">
+    <h2>Welcome to Dashboard</h2>
+    <div id="tokenContainer" style="text-align: center;">
+        <input type="text" id="tokenInput" placeholder="Enter Token" readonly>
+        <button onclick="copyToken()">Copy Token</button>
+    </div>
+</div>
+
+<script>
+    function openNav() {
+        document.getElementById('mySidebar').style.left = '0';
+    }
+
+    function closeNav() {
+        document.getElementById('mySidebar').style.left = '-250px';
+    }
+
+    async function getApiKey(feature) {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/get-api-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ feature })
+        });
+        
+        const data = await res.json();
+        if (res.status === 200) {
+            document.getElementById('tokenInput').value = data.apiKey;
+        } else {
+            alert('Failed to fetch API Key.');
+        }
+    }
+
+    function copyToken() {
+        const tokenInput = document.getElementById('tokenInput');
+        tokenInput.select();
+        document.execCommand('copy');
+        alert('API Key copied to clipboard');
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        window.location.href = 'index.html';
+    }
+</script>
+
+</body>
+</html>
