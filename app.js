@@ -109,13 +109,14 @@ app.get('/dashboard', (req, res) => {
 app.get('/instagram', (req, res) => {
   const apiKey = req.query.apiKey;
 
-  if (apiKey !== 'INSTAGRAM_API_KEY_123') {
+  // Validate the API key
+  if (apiKey !== 'wanzofc') {
     return res.status(403).json({ error: 'Invalid or missing API key' });
   }
 
   // Return Instagram API key if valid
   res.json({
-    apikey: 'INSTAGRAM_API_KEY_123',
+    apikey: 'wanzofc',
   });
 });
 
@@ -123,13 +124,14 @@ app.get('/instagram', (req, res) => {
 app.get('/youtube', (req, res) => {
   const apiKey = req.query.apiKey;
 
-  if (apiKey !== 'YOUTUBE_API_KEY_123') {
+  // Validate the API key
+  if (apiKey !== 'wanzofc') {
     return res.status(403).json({ error: 'Invalid or missing API key' });
   }
 
   // Return YouTube API key if valid
   res.json({
-    apikey: 'YOUTUBE_API_KEY_123',
+    apikey: 'wanzofc',
   });
 });
 
@@ -137,13 +139,14 @@ app.get('/youtube', (req, res) => {
 app.get('/tiktok', (req, res) => {
   const apiKey = req.query.apiKey;
 
-  if (apiKey !== 'TIKTOK_API_KEY_123') {
+  // Validate the API key
+  if (apiKey !== 'wanzofc') {
     return res.status(403).json({ error: 'Invalid or missing API key' });
   }
 
   // Return TikTok API key if valid
   res.json({
-    apikey: 'TIKTOK_API_KEY_123',
+    apikey: 'wanzofc',
   });
 });
 
