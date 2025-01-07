@@ -1,123 +1,153 @@
 const express = require('express');
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const bodyParser = require('body-parser');
 const fs = require('fs');
-const path = require('path');  // Untuk melayani file statis
-const settings = require('./setting');  // Menggunakan settings.js untuk konfigurasi
+
 const app = express();
-const PORT = process.env.PORT || 50000;
-const SECRET_KEY = settings.tokens;
+const port = process.env.PORT || 3000;
 
-app.use(bodyParser.json());
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Fungsi untuk membaca users.json
-const readUsers = () => {
-  const data = fs.readFileSync('users.json', 'utf8');
-  return JSON.parse(data);
+// Static files (to serve HTML, CSS, JS files)
+app.use(express.static(__dirname));
+
+// Function to read users from the users.json file
+const getUsers = () => {
+  const usersData = fs.readFileSync(path.join(__dirname, 'users.json'), 'utf-8');
+  return JSON.parse(usersData);
 };
 
-// Fungsi untuk menulis ke users.json
-const writeUsers = (users) => {
-  fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+// Function to write users to the users.json file
+const saveUser = (users) => {
+  fs.writeFileSync(path.join(__dirname, 'users.json'), JSON.stringify(users, null, 2), 'utf-8');
 };
 
-// Menyajikan file statis (index.html, signup.html, signin.html, dan style.css)
-app.use(express.static(__dirname)); // Secara langsung menggunakan direktori utama
-
-// Route untuk menampilkan index.html saat mengakses root URL
+// Home route (renders login page)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Route untuk Sign Up
-app.post('/signup', (req, res) => {
-    const { username, password } = req.body;
-    const users = readUsers();
-    const existingUser = users.find(u => u.username === username);
-
-    if (existingUser) {
-        return res.status(400).send({ message: 'Username already exists.' });
-    }
-
-    // Encrypt password before saving
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) {
-            return res.status(500).send({ message: 'Error hashing password.' });
-        }
-
-        users.push({ username, password: hashedPassword });
-        writeUsers(users);  // Menyimpan data ke file
-        res.status(200).send({ message: 'User registered successfully!' });
-    });
+// Sign Up route (renders sign up page)
+app.get('/signup', (req, res) => {
+  res.sendFile(path.join(__dirname, 'signup.html'));
 });
 
-// Route untuk Sign In
-app.post('/signin', (req, res) => {
-  const { username, password } = req.body;
-  const users = readUsers();
-  const user = users.find(u => u.username === username);
+// Handle Sign Up (save user to users.json)
+app.post('/signup', async (req, res) => {
+  const { username, email, password } = req.body;
 
-  if (!user) {
-    return res.status(404).send({ message: 'User not found.' });
+  // Hash the password before saving it
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Get the current users from users.json
+  const users = getUsers();
+
+  // Check if user already exists
+  if (users.some(user => user.email === email)) {
+    return res.status(400).json({ error: 'User with this email already exists' });
   }
 
-  bcrypt.compare(password, user.password, (err, isMatch) => {
-    if (!isMatch) {
-      return res.status(401).send({ message: 'Invalid password.' });
-    }
+  // Save new user
+  users.push({ username, email, password: hashedPassword });
+  saveUser(users);
 
-    const token = jwt.sign({ id: username }, SECRET_KEY, { expiresIn: '1h' });
-    res.json({ token });
+  // Redirect to login after sign up
+  res.redirect('/signup-success');
+});
+
+// Success page after sign up
+app.get('/signup-success', (req, res) => {
+  res.send('<h1>Sign Up Successful! Please <a href="/">login</a> now.</h1>');
+});
+
+// Handle Sign In (check credentials, generate token)
+app.post('/signin', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Get users from users.json
+  const users = getUsers();
+
+  // Find the user by email
+  const user = users.find(u => u.email === email);
+  if (!user) {
+    return res.status(400).json({ error: 'Invalid email or password' });
+  }
+
+  // Check if the password matches
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return res.status(400).json({ error: 'Invalid email or password' });
+  }
+
+  // Generate a JWT token
+  const token = jwt.sign({ userId: user.email }, 'your-secret-key', { expiresIn: '1h' });
+
+  // Redirect to dashboard after login with token
+  res.redirect(`/dashboard?token=${token}`);
+});
+
+// Dashboard route (protected, requires JWT token)
+app.get('/dashboard', (req, res) => {
+  const token = req.query.token;
+
+  if (!token) {
+    return res.status(403).json({ error: 'Access denied, no token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, 'your-secret-key');
+    res.sendFile(path.join(__dirname, 'dashboard.html'));
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid token' });
+  }
+});
+
+// Instagram API route - Requires API Key validation
+app.get('/instagram', (req, res) => {
+  const apiKey = req.query.apiKey;
+
+  if (apiKey !== 'INSTAGRAM_API_KEY_123') {
+    return res.status(403).json({ error: 'Invalid or missing API key' });
+  }
+
+  // Return Instagram API key if valid
+  res.json({
+    apikey: 'INSTAGRAM_API_KEY_123',
   });
 });
 
-// Route untuk mendapatkan API key untuk Instagram, YouTube, atau TikTok
-app.post('/get-api-key', verifyToken, (req, res) => {
-    const feature = req.body.feature;
+// YouTube API route - Requires API Key validation
+app.get('/youtube', (req, res) => {
+  const apiKey = req.query.apiKey;
 
-    if (!feature) {
-        return res.status(400).send({ message: 'Feature is required.' });
-    }
+  if (apiKey !== 'YOUTUBE_API_KEY_123') {
+    return res.status(403).json({ error: 'Invalid or missing API key' });
+  }
 
-    const apiKey = 'wanzofc'; // API key yang dapat digunakan semua orang
-
-    if (feature === 'instagram') {
-        res.json({
-            message: 'Instagram API key generated successfully.',
-            apiKey,
-            feature: 'Instagram'
-        });
-    } else if (feature === 'youtube') {
-        res.json({
-            message: 'YouTube API key generated successfully.',
-            apiKey,
-            feature: 'YouTube'
-        });
-    } else if (feature === 'tiktok') {
-        res.json({
-            message: 'TikTok API key generated successfully.',
-            apiKey,
-            feature: 'TikTok'
-        });
-    } else {
-        res.status(400).send({ message: 'Invalid feature.' });
-    }
+  // Return YouTube API key if valid
+  res.json({
+    apikey: 'YOUTUBE_API_KEY_123',
+  });
 });
 
-// Middleware untuk validasi token JWT
-function verifyToken(req, res, next) {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(403).send({ message: 'No token provided.' });
+// TikTok API route - Requires API Key validation
+app.get('/tiktok', (req, res) => {
+  const apiKey = req.query.apiKey;
 
-  jwt.verify(token, SECRET_KEY, (err, decoded) => {
-    if (err) return res.status(500).send({ message: 'Failed to authenticate token.' });
-    req.userId = decoded.id;
-    next();
+  if (apiKey !== 'TIKTOK_API_KEY_123') {
+    return res.status(403).json({ error: 'Invalid or missing API key' });
+  }
+
+  // Return TikTok API key if valid
+  res.json({
+    apikey: 'TIKTOK_API_KEY_123',
   });
-}
+});
 
-// Run the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
